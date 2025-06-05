@@ -4,7 +4,8 @@ const { ObjectId } = require('mongoose').Types; // Import for validation
 
 exports.createLink = async (req, res) => {
     try {
-        const { originalUrl, userId } = req.body;
+        // --- עדכון עבור ספרינט 3: קבלת פרמטרי טרגוט ---
+        const { originalUrl, userId, targetParamName, targetValues } = req.body;
 
         // Validate userId
         if (!ObjectId.isValid(userId)) {
@@ -17,20 +18,27 @@ exports.createLink = async (req, res) => {
             return res.status(404).json({ message: 'User not found.' });
         }
 
-        const newLink = new Link({ originalUrl, userId });
+        // --- עדכון עבור ספרינט 3: יצירת קישור עם פרמטרי טרגוט ---
+        const newLink = new Link({
+            originalUrl,
+            userId,
+            targetParamName: targetParamName || 't', // Use default 't' if not provided
+            targetValues: targetValues || [] // Default to empty array if not provided
+        });
         await newLink.save();
 
         // Add the link to the user's links array
         userExists.links.push(newLink._id);
         await userExists.save();
 
-        // *** FIX THIS LINE: Define shortenedUrl correctly using a template literal ***
-        const shortenedUrl = `<span class="math-inline">\{process\.env\.BASE\_URL\}/</span>{newLink._id}`; console.log('Generated Shortened URL:', shortenedUrl);
+        // --- תיקון קריטי: הגדרת shortenedUrl באופן תקין ---
+        const shortenedUrl = `${process.env.BASE_URL}/${newLink._id}`;
+        console.log('Generated Shortened URL:', shortenedUrl);
 
         res.status(201).json({
             message: 'Link created successfully',
             link: newLink,
-            shortenedUrl: `${process.env.BASE_URL}/${newLink._id}` // השורה הזו היא המקור לבעיה אם היא לא נכתבה נכון אצלך.
+            shortenedUrl: shortenedUrl // שימוש במשתנה שהוגדר כרגע
         });
     } catch (error) {
         console.error('Error creating link:', error.message);
@@ -61,7 +69,7 @@ exports.getLinkById = async (req, res) => {
     }
 };
 
-// Get a link by ID and redirect with click tracking
+// Get a link by ID and redirect with click tracking AND targeting
 exports.getLinkByIdAndRedirect = async (req, res) => {
     try {
         const link = await Link.findById(req.params.id);
@@ -69,15 +77,21 @@ exports.getLinkByIdAndRedirect = async (req, res) => {
             return res.status(404).json({ message: 'Link not found' });
         }
 
-        // Get IP address from the request
-        // req.ip works well for localhost. For deployed apps behind proxy,
-        // req.headers['x-forwarded-for'] is often preferred.
         const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+        // --- לוגיקת טרגוט עבור ספרינט 3 ---
+        let targetParamValue = null;
+        // בדוק אם יש שם פרמטר מוגדר לטרגוט בקישור, ואם הערך שלו קיים ב-query string
+        if (link.targetParamName && req.query[link.targetParamName]) {
+            targetParamValue = req.query[link.targetParamName];
+        }
+        // --- סוף לוגיקת טרגוט ---
 
         // Create a new click object
         const newClick = {
             insertedAt: new Date(),
-            ipAddress: ipAddress
+            ipAddress: ipAddress,
+            targetParamValue: targetParamValue // <-- שמור את ערך הטרגוט שחולץ
         };
 
         // Add the new click to the link's clicks array
@@ -92,6 +106,45 @@ exports.getLinkByIdAndRedirect = async (req, res) => {
     } catch (error) {
         console.error('Error in getLinkByIdAndRedirect:', error.message); // Log full error
         res.status(500).json({ message: 'Server error: ' + error.message }); // Return 500 for server issues
+    }
+};
+
+// --- פונקציה חדשה עבור ספרינט 3: אחזור קליקים מפולחים לפי טרגוט ---
+exports.getLinkClicksByTarget = async (req, res) => {
+    try {
+        const link = await Link.findById(req.params.id);
+        if (!link) {
+            return res.status(404).json({ message: 'Link not found' });
+        }
+
+        // קבץ קליקים לפי targetParamValue
+        const clicksByTarget = link.clicks.reduce((acc, click) => {
+            const target = click.targetParamValue || 'No Target'; // השתמש ב-'No Target' לקליקים ללא פרמטר טרגוט
+            acc[target] = (acc[target] || 0) + 1; // הגדל מונה
+            return acc;
+        }, {});
+
+        // בנה פירוט ידידותי יותר למשתמש כולל שמות הטרגוט
+        const totalClicks = link.clicks.length;
+        const targetBreakdown = Object.keys(clicksByTarget).map(value => {
+            const targetInfo = link.targetValues.find(tv => tv.value === value);
+            return {
+                targetValue: value,
+                targetName: targetInfo ? targetInfo.name : 'Unknown', // השתמש בשם שסופק או 'Unknown'
+                count: clicksByTarget[value]
+            };
+        });
+
+        res.status(200).json({
+            linkId: link._id,
+            originalUrl: link.originalUrl,
+            totalClicks: totalClicks,
+            clicksByTarget: targetBreakdown
+        });
+
+    } catch (error) {
+        console.error('Error getting link clicks by target:', error.message);
+        res.status(500).json({ message: 'Server error: ' + error.message });
     }
 };
 
