@@ -1,0 +1,31 @@
+# Node.js modules
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+.pnp
+.pnp.js
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+build/
+dist/
+public/build/ # אם ה-build output הולך לכאן
+
+# Logs
+*.log
+logs/
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Optional: Editor-specific files
+.vscode/ # הגדרות ספציפיות ל-VS Code
+.idea/   # הגדרות ספציפיות ל-WebStorm/IntelliJ
+.DS_Store # קבצים של macOS
+Thumbs.db # קבצים של Windows
