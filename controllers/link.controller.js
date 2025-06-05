@@ -58,6 +58,8 @@ exports.getAllLinks = async (req, res) => {
 
 exports.getLinkById = async (req, res) => {
     try {
+        // --- הוסף כאן לוג: מה מתקבל ב-req.params.id עבור getLinkById ---
+        console.log('Server received Link ID (getLinkById):', req.params.id, 'Type:', typeof req.params.id);
         const link = await Link.findById(req.params.id);
         if (!link) {
             return res.status(404).json({ message: 'Link not found' });
@@ -72,6 +74,8 @@ exports.getLinkById = async (req, res) => {
 // Get a link by ID and redirect with click tracking AND targeting
 exports.getLinkByIdAndRedirect = async (req, res) => {
     try {
+        // --- הוסף כאן לוג: מה מתקבל ב-req.params.id עבור getLinkByIdAndRedirect ---
+        console.log('Server received Link ID (getLinkByIdAndRedirect):', req.params.id, 'Type:', typeof req.params.id);
         const link = await Link.findById(req.params.id);
         if (!link) {
             return res.status(404).json({ message: 'Link not found' });
@@ -112,6 +116,8 @@ exports.getLinkByIdAndRedirect = async (req, res) => {
 // --- פונקציה חדשה עבור ספרינט 3: אחזור קליקים מפולחים לפי טרגוט ---
 exports.getLinkClicksByTarget = async (req, res) => {
     try {
+        // --- הוסף כאן לוג: מה מתקבל ב-req.params.id עבור getLinkClicksByTarget ---
+        console.log('Server received Link ID (getLinkClicksByTarget):', req.params.id, 'Type:', typeof req.params.id);
         const link = await Link.findById(req.params.id);
         if (!link) {
             return res.status(404).json({ message: 'Link not found' });
